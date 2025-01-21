@@ -21,12 +21,17 @@ MAX_CAPTURES_PAR_SESSION = 3
 TAILLE_MAX_STOCKAGE_MB = 1024
 DUREE_CONSERVATION_JOURS = 7
 
+# Paramètres de la caméra
+CAMERA_LARGEUR = 1280
+CAMERA_HAUTEUR = 720
+CAMERA_FPS = 30
+
 # Paramètres d'interface
 THEME_SOMBRE = True
 TAILLE_FENETRE = "1200x800"
 TAILLE_HISTORIQUE = 100
 
-# Couleurs du thème
+# Couleurs de l'interface
 COULEURS = {
     "fond": "#1E1E1E",
     "fond_secondaire": "#252526",
@@ -35,14 +40,17 @@ COULEURS = {
     "accent": "#007ACC",
     "succes": "#6A9955",
     "erreur": "#F14C4C",
-    "avertissement": "#CCA700",
+    "avertissement": "#CCA700"
 }
 
-# Configuration des caméras par défaut
-CAMERAS = {
-    "WEBCAM": 0,
-    "WEBCAM_EXTERNE": 1,
-}
+# Couleurs pour OpenCV
+COULEUR_SUCCES = (0, 255, 0)  # Vert en BGR
+COULEUR_ERREUR = (0, 0, 255)  # Rouge en BGR
+COULEUR_TEXTE = (255, 255, 255)  # Blanc en BGR
+
+# Configuration des caméras
+WEBCAM = 1
+WEBCAM_EXTERNE = 0
 
 # Chargement des configurations sensibles depuis les variables d'environnement
 PUSHBULLET_API_KEY = os.getenv('PUSHBULLET_API_KEY', '')

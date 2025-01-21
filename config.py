@@ -19,8 +19,8 @@ TAILLE_HISTORIQUE = 100  # Nombre maximum d'entrées dans l'historique
 
 # Configuration par défaut des caméras (sera écrasée par config_local.py)
 CAMERAS = {
-    "WEBCAM": 0,
-    "WEBCAM_EXTERNE": 1,
+    "WEBCAM": 1,
+    "WEBCAM_EXTERNE": 0,
 }
 
 # Les configurations sensibles sont dans config_local.py
