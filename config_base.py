@@ -5,12 +5,18 @@ from dotenv import load_dotenv
 # Chargement des variables d'environnement
 load_dotenv()
 
+# Configuration du logging
+NIVEAU_LOG = "INFO"
+FORMAT_LOG = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+FICHIER_LOG = "logs/app.log"
+
 # Paramètres de détection
 SEUIL_CONFIANCE = 0.6
 TAILLE_MIN_VISAGE = (30, 30)
 FACTEUR_REDUCTION = 0.25
 
 # Paramètres de notification
+NOTIFICATIONS_ACTIVES = True
 DELAI_NOTIFICATION = 30
 
 # Paramètres de sauvegarde
@@ -22,8 +28,8 @@ TAILLE_MAX_STOCKAGE_MB = 1024
 DUREE_CONSERVATION_JOURS = 7
 
 # Paramètres de la caméra
-CAMERA_LARGEUR = 1280
-CAMERA_HAUTEUR = 720
+CAMERA_LARGEUR = 640  # Ajusté selon votre webcam
+CAMERA_HAUTEUR = 480  # Ajusté selon votre webcam
 CAMERA_FPS = 30
 
 # Paramètres d'interface
