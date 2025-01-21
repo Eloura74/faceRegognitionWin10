@@ -1,0 +1,22 @@
+# Dossiers de données sensibles
+/captures_visages/
+/visages_inconnus/
+/historique/
+/nom_env/
+__pycache__/
+
+# Fichiers de configuration sensibles
+config_local.py
+.env
+*.env
+*.pyc
+
+# Fichiers de données
+*.pkl
+*.json
+encodages_visages.pkl
+
+# Logs et fichiers système
+*.log
+.DS_Store
+Thumbs.db
