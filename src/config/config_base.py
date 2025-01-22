@@ -9,10 +9,14 @@ DOSSIER_BASE = Path(__file__).resolve().parent.parent.parent
 DOSSIER_DATA = DOSSIER_BASE / "data"
 DOSSIER_VISAGES = DOSSIER_DATA / "visages"
 DOSSIER_CAPTURES = DOSSIER_DATA / "captures"
+DOSSIER_CONNUS = DOSSIER_DATA / "connus"
 DOSSIER_LOGS = DOSSIER_DATA / "logs"
 
+# Taille maximale du stockage (en octets)
+TAILLE_MAX_STOCKAGE = 1024 * 1024 * 1024  # 1 Go
+
 # Créer les dossiers nécessaires
-for dossier in [DOSSIER_DATA, DOSSIER_VISAGES, DOSSIER_CAPTURES, DOSSIER_LOGS]:
+for dossier in [DOSSIER_DATA, DOSSIER_VISAGES, DOSSIER_CAPTURES, DOSSIER_CONNUS, DOSSIER_LOGS]:
     dossier.mkdir(parents=True, exist_ok=True)
 
 # Configuration de la caméra
