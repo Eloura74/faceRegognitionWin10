@@ -1,62 +1,57 @@
-# Configuration de base du système de reconnaissance faciale
-import os
-from dotenv import load_dotenv
+"""
+Configuration de base pour l'application de reconnaissance faciale
+"""
+import logging
+from pathlib import Path
 
-# Chargement des variables d'environnement
-load_dotenv()
+# Configuration de l'interface
+TITRE_APP = "Système de Surveillance et Reconnaissance Faciale"
+TAILLE_FENETRE = "1280x720"
+THEME_SOMBRE = True
+COULEUR_PRINCIPALE = "blue"
+
+# Configuration de la caméra
+CAMERA_PRINCIPALE = 0  # 0 pour la webcam par défaut
+TAILLE_FRAME = (640, 480)
+FPS_MAX = 30
+
+# Configuration de la détection faciale
+SEUIL_TOLERANCE = 0.6  # Plus petit = plus strict
+TAILLE_MIN_VISAGE = 20  # Taille minimale du visage en pixels
+INTERVAL_DETECTION = 3  # Frames entre chaque détection
+
+# Configuration du stockage
+DOSSIER_BASE = Path("data")
+DOSSIER_CONNUS = DOSSIER_BASE / "known_faces"
+DOSSIER_INCONNUS = DOSSIER_BASE / "unknown_faces"
+DOSSIER_LOGS = Path("logs")
+LIMITE_JOURS_STOCKAGE = 30
+LIMITE_TAILLE_GO = 5.0
+
+# Configuration des notifications
+NOTIFICATIONS_ACTIVES = True
+DUREE_NOTIFICATION = 5000  # en millisecondes
+NIVEAU_ALERTE = "WARNING"
 
 # Configuration du logging
-NIVEAU_LOG = "INFO"
-FORMAT_LOG = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-FICHIER_LOG = "logs/app.log"
+NIVEAU_LOG = logging.INFO
+FORMAT_LOG = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+FICHIER_LOG = DOSSIER_LOGS / 'app.log'
 
-# Paramètres de détection
-SEUIL_CONFIANCE = 0.6
-TAILLE_MIN_VISAGE = (30, 30)
-FACTEUR_REDUCTION = 0.25
+# Messages d'interface
+MSG_CAMERA_DEMARREE = "Caméra active"
+MSG_CAMERA_ARRETEE = "Caméra arrêtée"
+MSG_DETECTION_ACTIVE = "Détection active"
+MSG_DETECTION_INACTIVE = "Détection inactive"
+MSG_PERSONNE_AUTORISEE = "Personne autorisée : {}"
+MSG_PERSONNE_NON_AUTORISEE = "⚠️ ALERTE : Personne non autorisée détectée"
+MSG_AJOUT_VISAGE_SUCCES = "Visage ajouté avec succès : {}"
+MSG_AJOUT_VISAGE_ECHEC = "Échec de l'ajout du visage"
 
-# Paramètres de notification
-NOTIFICATIONS_ACTIVES = True
-DELAI_NOTIFICATION = 30
-
-# Paramètres de sauvegarde
-DOSSIER_CAPTURES = "captures_visages"
-DOSSIER_INCONNUS = "visages_inconnus"
-DELAI_CAPTURE_INCONNU = 5
-MAX_CAPTURES_PAR_SESSION = 3
-TAILLE_MAX_STOCKAGE_MB = 1024
-DUREE_CONSERVATION_JOURS = 7
-
-# Paramètres de la caméra
-CAMERA_LARGEUR = 640  # Ajusté selon votre webcam
-CAMERA_HAUTEUR = 480  # Ajusté selon votre webcam
-CAMERA_FPS = 30
-
-# Paramètres d'interface
-THEME_SOMBRE = True
-TAILLE_FENETRE = "1200x800"
-TAILLE_HISTORIQUE = 100
-
-# Couleurs de l'interface
-COULEURS = {
-    "fond": "#1E1E1E",
-    "fond_secondaire": "#252526",
-    "texte": "#FFFFFF",
-    "texte_secondaire": "#CCCCCC",
-    "accent": "#007ACC",
-    "succes": "#6A9955",
-    "erreur": "#F14C4C",
-    "avertissement": "#CCA700"
-}
-
-# Couleurs pour OpenCV
-COULEUR_SUCCES = (0, 255, 0)  # Vert en BGR
-COULEUR_ERREUR = (0, 0, 255)  # Rouge en BGR
-COULEUR_TEXTE = (255, 255, 255)  # Blanc en BGR
-
-# Configuration des caméras
-WEBCAM = 1
-WEBCAM_EXTERNE = 0
+# Chemins des modèles
+DOSSIER_MODELES = Path("models")
+FICHIER_LANDMARKS = DOSSIER_MODELES / "shape_predictor_68_face_landmarks.dat"
+FICHIER_RECONNAISSANCE = DOSSIER_MODELES / "dlib_face_recognition_resnet_model_v1.dat"
 
 # Chargement des configurations sensibles depuis les variables d'environnement
 PUSHBULLET_API_KEY = os.getenv('PUSHBULLET_API_KEY', '')

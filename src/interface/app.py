@@ -1,278 +1,153 @@
-"""
-Interface principale de l'application de reconnaissance faciale.
-"""
-import customtkinter as ctk
+"""Interface graphique principale de l'application"""
+import tkinter as tk
+from tkinter import ttk, messagebox, simpledialog
 import cv2
 from PIL import Image, ImageTk
-import sys
-import os
-from pathlib import Path
 import logging
-import numpy as np
 from datetime import datetime
+from pathlib import Path
+import sys
+import customtkinter as ctk
 
-# Ajouter le répertoire parent au PYTHONPATH
-current_dir = Path(__file__).resolve().parent
-project_root = current_dir.parent.parent
-sys.path.append(str(project_root))
+# Ajouter le dossier racine au PYTHONPATH
+RACINE = Path(__file__).resolve().parent.parent.parent
+if str(RACINE) not in sys.path:
+    sys.path.append(str(RACINE))
 
+from src.config.config_base import CONFIG_GUI, DOSSIER_CAPTURES
 from src.core.camera import GestionnaireCamera
-from src.core.detection import DetecteurVisage
-from src.core.stockage import GestionnaireStockage
-from config_base import *
+from src.core.detection import DetecteurVisages
+from src.core.voix import AssistantVocal
 
-# Création du dossier logs s'il n'existe pas
-logs_dir = project_root / 'logs'
-logs_dir.mkdir(exist_ok=True)
-log_file = logs_dir / 'app.log'
-
-# Configuration du logging
-logging.basicConfig(
-    level=NIVEAU_LOG,
-    format=FORMAT_LOG,
-    handlers=[
-        logging.FileHandler(str(log_file)),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
-
-class ApplicationReconnaissanceFaciale(ctk.CTk):
+class Application(ctk.CTk):
+    """Application principale"""
+    
     def __init__(self):
+        """Initialise l'application"""
         super().__init__()
-
-        # Configuration de la fenêtre principale
-        self.title("Système de Reconnaissance Faciale")
-        self.geometry(TAILLE_FENETRE)
         
-        # Statistiques
-        self.visages_detectes = 0
-        self.personnes_connues = 0
-        self.personnes_inconnues = 0
+        # Configuration de la fenêtre
+        self.title(CONFIG_GUI['titre'])
+        self.geometry(f"{CONFIG_GUI['largeur']}x{CONFIG_GUI['hauteur']}")
         
-        # Initialisation des gestionnaires
-        self.gestionnaire_camera = GestionnaireCamera()
-        self.detecteur = DetecteurVisage()
-        self.stockage = GestionnaireStockage()
+        # Composants principaux
+        self.camera = GestionnaireCamera()
+        self.detecteur = DetecteurVisages()
+        self.assistant = AssistantVocal()
         
-        # Variables d'état
-        self.camera_active = False
+        # Variables
         self.detection_active = False
-        self.notifications_actives = NOTIFICATIONS_ACTIVES
-        self.derniere_frame = None
+        self.camera_active = False
         
-        # Configuration du thème
-        ctk.set_appearance_mode("dark" if THEME_SOMBRE else "light")
-        ctk.set_default_color_theme("blue")
+        # Interface
+        self._creer_interface()
         
-        # Création de l'interface
-        self.creer_interface()
+        # Démarrer la mise à jour
+        self._update_interface()
         
-        # Démarrer avec la caméra par défaut
-        self.demarrer_camera()
-
-    def creer_interface(self):
-        """Création de l'interface utilisateur"""
-        # Frame principale avec grid
-        self.grid_columnconfigure(0, weight=3)  # Zone vidéo
-        self.grid_columnconfigure(1, weight=1)  # Panneau latéral
-        self.grid_rowconfigure(0, weight=1)
-
+    def _creer_interface(self):
+        """Crée l'interface graphique"""
+        # Frame principale
+        self.frame_principale = ctk.CTkFrame(self)
+        self.frame_principale.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
         # Frame vidéo (gauche)
-        self.frame_video = ctk.CTkFrame(self)
-        self.frame_video.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
-        self.frame_video.grid_rowconfigure(0, weight=1)
-        self.frame_video.grid_columnconfigure(0, weight=1)
-
-        # Label pour l'affichage vidéo
+        self.frame_video = ctk.CTkFrame(self.frame_principale)
+        self.frame_video.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Label vidéo
         self.label_video = ctk.CTkLabel(self.frame_video, text="")
-        self.label_video.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
-
-        # Panneau latéral (droite)
-        self.panneau_lateral = ctk.CTkFrame(self)
-        self.panneau_lateral.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
-        self.creer_panneau_lateral()
-
-    def creer_panneau_lateral(self):
-        """Création du panneau latéral avec les contrôles"""
-        # Titre
-        titre = ctk.CTkLabel(
-            self.panneau_lateral,
-            text="Contrôles",
-            font=ctk.CTkFont(size=20, weight="bold")
-        )
-        titre.pack(pady=10)
-
-        # Section Caméra
-        frame_camera = ctk.CTkFrame(self.panneau_lateral)
-        frame_camera.pack(fill="x", padx=10, pady=5)
+        self.label_video.pack(fill=tk.BOTH, expand=True)
         
-        self.btn_camera = ctk.CTkButton(
-            frame_camera,
-            text="Arrêter Caméra" if self.camera_active else "Démarrer Caméra",
-            command=self.toggle_camera
-        )
-        self.btn_camera.pack(pady=5)
-
-        # Section Détection
-        frame_detection = ctk.CTkFrame(self.panneau_lateral)
-        frame_detection.pack(fill="x", padx=10, pady=5)
+        # Frame contrôles (droite)
+        self.frame_controles = ctk.CTkFrame(self.frame_principale)
+        self.frame_controles.pack(side=tk.RIGHT, fill=tk.Y, padx=5, pady=5)
         
-        self.btn_detection = ctk.CTkButton(
-            frame_detection,
-            text="Arrêter Détection" if self.detection_active else "Démarrer Détection",
-            command=self.toggle_detection
-        )
-        self.btn_detection.pack(pady=5)
-
-        # Section Notifications
-        frame_notifications = ctk.CTkFrame(self.panneau_lateral)
-        frame_notifications.pack(fill="x", padx=10, pady=5)
+        # Liste des profils
+        self.frame_profils = ctk.CTkFrame(self.frame_controles)
+        self.frame_profils.pack(fill=tk.X, padx=5, pady=5)
         
-        self.switch_notifications = ctk.CTkSwitch(
-            frame_notifications,
-            text="Notifications",
-            command=self.toggle_notifications,
-            variable=ctk.BooleanVar(value=self.notifications_actives)
-        )
-        self.switch_notifications.pack(pady=5)
-
-        # Section Statistiques
-        frame_stats = ctk.CTkFrame(self.panneau_lateral)
-        frame_stats.pack(fill="x", padx=10, pady=5)
+        ctk.CTkLabel(self.frame_profils, text="Profils").pack()
         
-        self.label_stats = ctk.CTkLabel(
-            frame_stats,
-            text="Statistiques:\n" +
-                 f"Visages détectés: {self.visages_detectes}\n" +
-                 f"Personnes connues: {self.personnes_connues}\n" +
-                 f"Inconnus: {self.personnes_inconnues}"
-        )
-        self.label_stats.pack(pady=5)
-
-        # Bouton pour ajouter un visage connu
-        self.btn_ajouter_visage = ctk.CTkButton(
-            self.panneau_lateral,
-            text="Ajouter Visage Actuel",
-            command=self.ajouter_visage_actuel
-        )
-        self.btn_ajouter_visage.pack(pady=10)
-
-    def ajouter_visage_actuel(self):
-        """Ajoute le visage actuellement détecté à la base de données"""
-        if self.derniere_frame is None:
-            logger.warning("Aucune frame disponible pour ajouter un visage")
-            return
-
-        # Créer une fenêtre de dialogue pour le nom
-        dialog = ctk.CTkInputDialog(
-            text="Entrez le nom de la personne:",
-            title="Ajouter un visage"
-        )
-        nom = dialog.get_input()
+        self.liste_profils = tk.Listbox(self.frame_profils, bg='#2b2b2b', fg='white',
+                                      selectmode=tk.SINGLE, height=10)
+        self.liste_profils.pack(fill=tk.X, padx=5, pady=5)
         
-        if nom:
-            if self.detecteur.ajouter_visage_connu(self.derniere_frame, nom):
-                logger.info(f"Visage ajouté avec succès: {nom}")
-            else:
-                logger.error("Impossible d'ajouter le visage")
-
-    def mettre_a_jour_statistiques(self):
-        """Met à jour l'affichage des statistiques"""
-        self.label_stats.configure(
-            text="Statistiques:\n" +
-                 f"Visages détectés: {self.visages_detectes}\n" +
-                 f"Personnes connues: {self.personnes_connues}\n" +
-                 f"Inconnus: {self.personnes_inconnues}"
-        )
-
-    def demarrer_camera(self):
-        """Démarre la caméra principale"""
-        if not self.camera_active:
-            if self.gestionnaire_camera.ajouter_camera("principale", 1):
-                self.camera_active = True
-                self.gestionnaire_camera.demarrer_flux("principale")
-                self.after(10, self.actualiser_video)
-                self.btn_camera.configure(text="Arrêter Caméra")
-                logger.info("Caméra démarrée")
-            else:
-                logger.error("Impossible de démarrer la caméra")
-
-    def arreter_camera(self):
-        """Arrête la caméra principale"""
-        if self.camera_active:
-            self.camera_active = False
-            self.gestionnaire_camera.arreter_flux("principale")
-            self.btn_camera.configure(text="Démarrer Caméra")
-            logger.info("Caméra arrêtée")
-
-    def toggle_camera(self):
-        """Bascule l'état de la caméra"""
-        if self.camera_active:
-            self.arreter_camera()
-        else:
-            self.demarrer_camera()
-
-    def toggle_detection(self):
-        """Bascule l'état de la détection faciale"""
-        self.detection_active = not self.detection_active
-        self.btn_detection.configure(
-            text="Arrêter Détection" if self.detection_active else "Démarrer Détection"
-        )
-        logger.info(f"Détection {'activée' if self.detection_active else 'désactivée'}")
-
-    def toggle_notifications(self):
-        """Bascule l'état des notifications"""
-        self.notifications_actives = not self.notifications_actives
-        logger.info(f"Notifications {'activées' if self.notifications_actives else 'désactivées'}")
-
-    def actualiser_video(self):
-        """Met à jour l'affichage vidéo"""
-        if self.camera_active:
-            frame = self.gestionnaire_camera.obtenir_frame("principale")
+        # Boutons profils
+        self.frame_boutons_profils = ctk.CTkFrame(self.frame_profils)
+        self.frame_boutons_profils.pack(fill=tk.X, padx=5, pady=5)
+        
+        self.btn_ajouter = ctk.CTkButton(self.frame_boutons_profils, text="+ Ajouter",
+                                        command=self._on_ajouter_profil)
+        self.btn_ajouter.pack(side=tk.LEFT, padx=5)
+        
+        self.btn_supprimer = ctk.CTkButton(self.frame_boutons_profils, text="- Supprimer",
+                                          command=self._on_supprimer_profil)
+        self.btn_supprimer.pack(side=tk.RIGHT, padx=5)
+        
+        # Sélection caméra
+        self.frame_camera = ctk.CTkFrame(self.frame_controles)
+        self.frame_camera.pack(fill=tk.X, padx=5, pady=5)
+        
+        ctk.CTkLabel(self.frame_camera, text="Sélectionner une caméra:").pack()
+        
+        self.combo_camera = ttk.Combobox(self.frame_camera, values=self.camera.liste_cameras())
+        if self.camera.liste_cameras():
+            self.combo_camera.set(self.camera.liste_cameras()[0])
+        self.combo_camera.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Boutons contrôle
+        self.btn_camera = ctk.CTkButton(self.frame_controles, text="▶ Démarrer Caméra",
+                                       command=self._on_toggle_camera)
+        self.btn_camera.pack(fill=tk.X, padx=5, pady=5)
+        
+        self.btn_detection = ctk.CTkButton(self.frame_controles, text="🔍 Activer Détection",
+                                          command=self._on_toggle_detection)
+        self.btn_detection.pack(fill=tk.X, padx=5, pady=5)
+        
+        self.btn_vocal = ctk.CTkButton(self.frame_controles, text="🔊 Activer Assistant Vocal",
+                                      command=self._on_toggle_vocal)
+        self.btn_vocal.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Historique
+        self.frame_historique = ctk.CTkFrame(self.frame_controles)
+        self.frame_historique.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        ctk.CTkLabel(self.frame_historique, text="Historique").pack()
+        
+        self.historique = tk.Text(self.frame_historique, height=10, bg='#2b2b2b',
+                                fg='white', wrap=tk.WORD)
+        self.historique.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Frame captures
+        self.frame_captures = ctk.CTkFrame(self.frame_controles)
+        self.frame_captures.pack(fill=tk.X, padx=5, pady=5)
+        
+        ctk.CTkLabel(self.frame_captures, text="Dernière capture").pack()
+        
+        self.label_capture = ctk.CTkLabel(self.frame_captures, text="")
+        self.label_capture.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Charger les profils existants
+        self._charger_profils()
+        
+    def _charger_profils(self):
+        """Charge la liste des profils"""
+        self.liste_profils.delete(0, tk.END)
+        for nom in self.detecteur.noms_connus:
+            self.liste_profils.insert(tk.END, nom)
             
-            if frame is not None:
-                self.derniere_frame = frame.copy()
-                
+    def _update_interface(self):
+        """Met à jour l'interface"""
+        if self.camera_active:
+            # Lire la frame
+            ret, frame = self.camera.lire_frame()
+            if ret:
+                # Détecter les visages si activé
                 if self.detection_active:
-                    # Effectuer la détection faciale
-                    resultats = self.detecteur.detecter_visages(frame)
+                    frame = self.detecteur.detecter(frame)
                     
-                    # Mettre à jour les statistiques
-                    self.visages_detectes = len(resultats)
-                    self.personnes_connues = sum(1 for r in resultats if r['est_connu'])
-                    self.personnes_inconnues = self.visages_detectes - self.personnes_connues
-                    self.mettre_a_jour_statistiques()
-                    
-                    # Dessiner les résultats
-                    for resultat in resultats:
-                        top, right, bottom, left = resultat['position']
-                        nom = resultat['nom']
-                        confiance = resultat['confiance']
-                        est_autorise = resultat['est_autorise']
-                        
-                        # Choisir la couleur en fonction de l'autorisation
-                        if est_autorise:
-                            couleur = (0, 255, 0)  # Vert pour les personnes autorisées
-                            statut = "AUTORISÉ"
-                        else:
-                            couleur = (0, 0, 255)  # Rouge pour les personnes non autorisées
-                            statut = "NON AUTORISÉ"
-                            
-                        # Rectangle autour du visage
-                        cv2.rectangle(frame, (left, top), (right, bottom), couleur, 2)
-                        
-                        # Texte avec le nom, la confiance et le statut
-                        texte = f"{nom} ({confiance:.2%}) - {statut}"
-                        y = top - 10 if top > 20 else top + 10
-                        cv2.putText(frame, texte, (left, y),
-                                  cv2.FONT_HERSHEY_SIMPLEX, 0.5, couleur, 2)
-
-                        # Log si personne non autorisée
-                        if not est_autorise:
-                            logger.warning(f"ALERTE: Personne non autorisée détectée - {datetime.now().strftime('%H:%M:%S')}")
-
-                # Convertir pour l'affichage
+                # Convertir pour affichage
                 image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 image = Image.fromarray(image)
                 photo = ImageTk.PhotoImage(image=image)
@@ -280,16 +155,95 @@ class ApplicationReconnaissanceFaciale(ctk.CTk):
                 # Mettre à jour l'affichage
                 self.label_video.configure(image=photo)
                 self.label_video.image = photo
-
-            # Programmer la prochaine mise à jour
-            self.after(10, self.actualiser_video)
-
+                
+        # Planifier la prochaine mise à jour
+        self.after(10, self._update_interface)
+        
+    def _on_toggle_camera(self):
+        """Gestion du bouton caméra"""
+        if not self.camera_active:
+            # Démarrer la caméra
+            camera_index = self.combo_camera.current()
+            if self.camera.demarrer_camera(camera_index):
+                self.camera_active = True
+                self.btn_camera.configure(text="⏹ Arrêter Caméra")
+                self._ajouter_historique("Caméra démarrée")
+        else:
+            # Arrêter la caméra
+            self.camera.arreter_camera()
+            self.camera_active = False
+            self.btn_camera.configure(text="▶ Démarrer Caméra")
+            self._ajouter_historique("Caméra arrêtée")
+            
+    def _on_toggle_detection(self):
+        """Gestion du bouton détection"""
+        self.detection_active = not self.detection_active
+        if self.detection_active:
+            self.btn_detection.configure(text="⏹ Désactiver Détection")
+            self._ajouter_historique("Détection activée")
+        else:
+            self.btn_detection.configure(text="🔍 Activer Détection")
+            self._ajouter_historique("Détection désactivée")
+            
+    def _on_toggle_vocal(self):
+        """Gestion du bouton assistant vocal"""
+        if not self.assistant.actif:
+            self.assistant.activer()
+            self.btn_vocal.configure(text="🔇 Désactiver Assistant Vocal")
+            self._ajouter_historique("Assistant vocal activé")
+        else:
+            self.assistant.desactiver()
+            self.btn_vocal.configure(text="🔊 Activer Assistant Vocal")
+            self._ajouter_historique("Assistant vocal désactivé")
+            
+    def _on_ajouter_profil(self):
+        """Ajoute un nouveau profil"""
+        if not self.camera_active:
+            messagebox.showerror("Erreur", "Veuillez démarrer la caméra d'abord")
+            return
+            
+        nom = simpledialog.askstring("Nouveau profil", "Nom du profil:")
+        if nom:
+            ret, frame = self.camera.lire_frame()
+            if ret and self.detecteur.ajouter_visage(nom, frame):
+                self._charger_profils()
+                self._ajouter_historique(f"Profil ajouté: {nom}")
+                self.assistant.parler(f"Nouveau profil ajouté : {nom}")
+            else:
+                messagebox.showerror("Erreur", "Impossible d'ajouter le profil")
+                
+    def _on_supprimer_profil(self):
+        """Supprime un profil"""
+        selection = self.liste_profils.curselection()
+        if not selection:
+            messagebox.showerror("Erreur", "Veuillez sélectionner un profil")
+            return
+            
+        nom = self.liste_profils.get(selection[0])
+        if messagebox.askyesno("Confirmation", f"Supprimer le profil {nom} ?"):
+            if self.detecteur.supprimer_visage(nom):
+                self._charger_profils()
+                self._ajouter_historique(f"Profil supprimé: {nom}")
+                self.assistant.parler(f"Profil supprimé : {nom}")
+            else:
+                messagebox.showerror("Erreur", "Impossible de supprimer le profil")
+                
+    def _ajouter_historique(self, message: str):
+        """Ajoute un message à l'historique"""
+        horodatage = datetime.now().strftime("%H:%M:%S")
+        self.historique.insert("1.0", f"{horodatage} - {message}\n")
+        
     def on_closing(self):
-        """Gestionnaire de fermeture de l'application"""
-        self.arreter_camera()
-        self.quit()
-
+        """Gestion de la fermeture de l'application"""
+        self.camera.arreter_camera()
+        self.destroy()
+        
 if __name__ == "__main__":
-    app = ApplicationReconnaissanceFaciale()
+    # Configuration du logging
+    logging.basicConfig(level=logging.INFO,
+                       format='%(asctime)s - %(levelname)s - %(message)s')
+    
+    # Lancer l'application
+    app = Application()
     app.protocol("WM_DELETE_WINDOW", app.on_closing)
     app.mainloop()

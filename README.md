@@ -1,91 +1,90 @@
 # Système de Reconnaissance Faciale
 
-## Description
-Application de reconnaissance faciale en temps réel avec interface graphique moderne, gestion multi-caméras et système de notification.
+Un système de reconnaissance faciale moderne avec interface graphique et assistant vocal.
 
-## Prérequis
-- Python 3.8 ou supérieur
-- OpenCV
-- Une webcam fonctionnelle
+## Fonctionnalités
+
+- 👁 Détection et reconnaissance de visages en temps réel
+- 🎤 Assistant vocal pour le contrôle de l'application
+- 📸 Gestion des profils (ajout/suppression)
+- 🎥 Support multi-caméras
+- 🚨 Capture automatique des intrus
+- 📊 Historique des détections
+- 🎯 Interface graphique moderne et intuitive
 
 ## Installation
 
-1. Cloner le repository :
+1. Cloner le dépôt :
 ```bash
-git clone [votre-repo]
+git clone [URL_DU_DEPOT]
 cd ReconnaissanceFacial
 ```
 
-2. Créer un environnement virtuel :
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate     # Windows
-```
-
-3. Installer les dépendances :
+2. Installer les dépendances :
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Configuration :
-- Copier `config_local.example.py` vers `config_local.py`
-- Modifier les paramètres dans `config_local.py` selon vos besoins
-
-## Configuration de la Sécurité
-
-### Fichiers Sensibles
-Les fichiers suivants sont automatiquement ignorés par Git :
-- `config_local.py` : Configuration locale et données sensibles
-- Dossiers de données : `/data/known_faces/`, `/data/unknown_faces/`
-- Fichiers de logs : `*.log`
-- Fichiers de cache : `__pycache__/`, `*.pyc`
-- Fichiers d'environnement : `.env`
-
-### Bonnes Pratiques
-1. Ne jamais commiter de données sensibles (clés API, mots de passe)
-2. Utiliser des variables d'environnement pour les données sensibles
-3. Limiter la taille des fichiers de données (max 1 Go par défaut)
-4. Nettoyer régulièrement les anciennes données (7 jours par défaut)
-
 ## Utilisation
 
-1. Tester votre caméra :
+1. Lancer l'application :
 ```bash
-python src/test_camera.py [index_camera]
+python src/main.py
 ```
 
-2. Lancer l'application :
-```bash
-python src/interface/app.py
-```
+2. Interface principale :
+   - Cliquez sur "▶ Démarrer Caméra" pour activer la caméra
+   - Utilisez "👁 Activer Détection" pour la reconnaissance
+   - "📸 Capturer Visage" pour ajouter un nouveau profil
+   - "🎤 Assistant Vocal" pour le contrôle vocal
+
+3. Commandes vocales disponibles :
+   - "Démarrer caméra"
+   - "Arrêter caméra"
+   - "Activer détection"
+   - "Désactiver détection"
+   - "Capturer visage"
+
+## Configuration
+
+Le fichier `src/config/config_base.py` contient toutes les configurations :
+- Paramètres de la caméra
+- Seuils de détection
+- Messages vocaux
+- Apparence de l'interface
 
 ## Structure du Projet
+
 ```
 ReconnaissanceFacial/
+├── data/
+│   ├── visages/      # Profils enregistrés
+│   ├── captures/     # Captures d'intrus
+│   └── logs/         # Journaux d'événements
 ├── src/
-│   ├── core/           # Logique métier
-│   ├── interface/      # Interface utilisateur
-│   └── utils/          # Utilitaires
-├── config/             # Configuration
-├── data/              # Données (ignoré par git)
-└── logs/              # Logs (ignoré par git)
+│   ├── core/         # Logique principale
+│   ├── interface/    # Interface graphique
+│   └── config/       # Configuration
+├── requirements.txt  # Dépendances
+└── README.md        # Documentation
 ```
 
-## Sécurité
-- Les images sont stockées localement uniquement
-- Limite de stockage configurable
-- Nettoyage automatique des anciennes données
-- Protection des données sensibles via .gitignore
-- Pas de transmission de données vers des serveurs externes
+## Dépendances Principales
 
-## Contribution
-1. Fork le projet
-2. Créer une branche (`git checkout -b feature/AmazingFeature`)
-3. Commit les changements (`git commit -m 'Add some AmazingFeature'`)
-4. Push vers la branche (`git push origin feature/AmazingFeature`)
-5. Ouvrir une Pull Request
+- OpenCV : Traitement d'images et accès caméra
+- face_recognition : Détection et reconnaissance faciale
+- pyttsx3 : Synthèse vocale
+- SpeechRecognition : Reconnaissance vocale
+- PyAudio : Gestion audio
+- Tkinter : Interface graphique
+
+## Développement
+
+Pour contribuer au projet :
+1. Créer une branche pour votre fonctionnalité
+2. Développer et tester vos modifications
+3. Soumettre une pull request
 
 ## Licence
-Distribué sous la licence MIT. Voir `LICENSE` pour plus d'informations.
+
+Ce projet est sous licence MIT. Voir le fichier LICENSE pour plus de détails.

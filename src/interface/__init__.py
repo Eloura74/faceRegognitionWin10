@@ -1,7 +1,14 @@
 """
-Package interface pour l'application de reconnaissance faciale.
+Package interface
 """
+from pathlib import Path
+import sys
 
-from .app import ApplicationReconnaissanceFaciale
+# Ajouter le dossier racine au PYTHONPATH
+RACINE = Path(__file__).resolve().parent.parent.parent
+if str(RACINE) not in sys.path:
+    sys.path.append(str(RACINE))
 
-__all__ = ['ApplicationReconnaissanceFaciale']
+from src.interface.app import AppReconnaissanceFaciale
+
+__all__ = ['AppReconnaissanceFaciale']

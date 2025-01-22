@@ -1,114 +1,109 @@
-"""
-Module de gestion des flux vidéo pour le système de reconnaissance faciale.
-"""
+"""Module de gestion de la caméra"""
 import cv2
-import threading
-from typing import Dict, Optional, List
-from queue import Queue
 import logging
-import numpy as np
-
+from typing import List, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
 class GestionnaireCamera:
-    """Gestionnaire de flux vidéo multi-caméras"""
+    """Gère l'accès à la caméra"""
     
     def __init__(self):
-        self.cameras: Dict[str, dict] = {}
-        self.flux_actifs: Dict[str, bool] = {}
-        self.frames_queue: Dict[str, Queue] = {}
-        self._threads: Dict[str, threading.Thread] = {}
-
-    def ajouter_camera(self, id_camera: str, source: int | str, nom: str = None) -> bool:
-        """
-        Ajoute une nouvelle caméra au gestionnaire.
+        """Initialise le gestionnaire de caméra"""
+        self.camera = None
+        self.index_camera = 1
+        self._cameras_disponibles = self._trouver_cameras()
         
-        Args:
-            id_camera: Identifiant unique de la caméra
-            source: Index ou URL de la source vidéo
-            nom: Nom convivial de la caméra
+    def _trouver_cameras(self) -> List[Tuple[int, str]]:
+        """Trouve les caméras disponibles
         
         Returns:
-            bool: True si l'ajout est réussi, False sinon
+            Liste des caméras (index, backend)
+        """
+        cameras = []
+        for backend in ["DSHOW"]:  # On peut ajouter d'autres backends si nécessaire
+            index = 0
+            while index < 10:  # Limite à 10 caméras pour éviter une boucle infinie
+                camera = cv2.VideoCapture(index, getattr(cv2, f"CAP_{backend}"))
+                if camera.isOpened():
+                    cameras.append((index, backend))
+                    camera.release()
+                index += 1
+                
+        logger.info(f"Caméras trouvées : {cameras}")
+        return cameras
+        
+    def liste_cameras(self) -> List[str]:
+        """Retourne la liste des caméras disponibles
+        
+        Returns:
+            Liste des noms des caméras
+        """
+        return [f"Caméra {index}" for index, _ in self._cameras_disponibles]
+        
+    def demarrer_camera(self, index: int = 0) -> bool:
+        """Démarre la caméra
+        
+        Args:
+            index: Index de la caméra à utiliser
+            
+        Returns:
+            True si la caméra a démarré
         """
         try:
-            capture = cv2.VideoCapture(source)
-            if not capture.isOpened():
-                logger.error(f"Impossible d'ouvrir la caméra: {source}")
+            # Vérifier que l'index est valide
+            if index >= len(self._cameras_disponibles):
+                logger.error(f"Index de caméra invalide: {index}")
                 return False
-
-            self.cameras[id_camera] = {
-                'source': source,
-                'nom': nom or f"Caméra {id_camera}",
-                'capture': capture
-            }
-            self.frames_queue[id_camera] = Queue(maxsize=10)
-            self.flux_actifs[id_camera] = False
+                
+            # Arrêter la caméra si elle est déjà active
+            if self.camera is not None:
+                self.arreter_camera()
+                
+            # Démarrer la nouvelle caméra
+            camera_index, backend = self._cameras_disponibles[index]
+            self.camera = cv2.VideoCapture(camera_index, getattr(cv2, f"CAP_{backend}"))
+            
+            if not self.camera.isOpened():
+                logger.error(f"Impossible d'ouvrir la caméra {index}")
+                return False
+                
+            self.index_camera = index
+            logger.info(f"Caméra {index} démarrée")
             return True
             
         except Exception as e:
-            logger.error(f"Erreur lors de l'ajout de la caméra {id_camera}: {str(e)}")
+            logger.error(f"Erreur lors du démarrage de la caméra: {str(e)}")
             return False
-
-    def demarrer_flux(self, id_camera: str) -> bool:
-        """Démarre le flux vidéo pour une caméra spécifique"""
-        if id_camera not in self.cameras:
-            return False
-
-        if self.flux_actifs.get(id_camera):
-            return True
-
-        def capture_flux():
-            camera = self.cameras[id_camera]
-            while self.flux_actifs[id_camera]:
-                ret, frame = camera['capture'].read()
-                if not ret:
-                    logger.warning(f"Erreur de lecture du flux: {id_camera}")
-                    break
-
-                if not self.frames_queue[id_camera].full():
-                    self.frames_queue[id_camera].put(frame)
-
-        self.flux_actifs[id_camera] = True
-        thread = threading.Thread(target=capture_flux, daemon=True)
-        self._threads[id_camera] = thread
-        thread.start()
-        return True
-
-    def arreter_flux(self, id_camera: str) -> bool:
-        """Arrête le flux vidéo d'une caméra spécifique"""
-        if id_camera not in self.flux_actifs:
-            return False
-
-        self.flux_actifs[id_camera] = False
-        if id_camera in self._threads:
-            self._threads[id_camera].join(timeout=1.0)
-            del self._threads[id_camera]
-
-        # Vider la queue
-        while not self.frames_queue[id_camera].empty():
-            self.frames_queue[id_camera].get()
-
-        return True
-
-    def obtenir_frame(self, id_camera: str) -> Optional[np.ndarray]:
-        """Récupère la dernière frame d'une caméra spécifique"""
-        if id_camera not in self.frames_queue:
-            return None
-
+            
+    def arreter_camera(self):
+        """Arrête la caméra active"""
         try:
-            return self.frames_queue[id_camera].get_nowait()
-        except:
-            return None
-
-    def obtenir_cameras_actives(self) -> List[str]:
-        """Retourne la liste des IDs des caméras actives"""
-        return [id_cam for id_cam, actif in self.flux_actifs.items() if actif]
-
-    def __del__(self):
-        """Nettoyage des ressources lors de la destruction de l'instance"""
-        for id_camera in list(self.cameras.keys()):
-            self.arreter_flux(id_camera)
-            if 'capture' in self.cameras[id_camera]:
-                self.cameras[id_camera]['capture'].release()
+            if self.camera is not None:
+                self.camera.release()
+                self.camera = None
+                logger.info("Caméra arrêtée")
+                
+        except Exception as e:
+            logger.error(f"Erreur lors de l'arrêt de la caméra: {str(e)}")
+            
+    def lire_frame(self) -> Tuple[bool, Optional[cv2.Mat]]:
+        """Lit une frame de la caméra
+        
+        Returns:
+            Tuple (succès, frame)
+        """
+        try:
+            if self.camera is None:
+                return False, None
+                
+            ret, frame = self.camera.read()
+            if not ret:
+                logger.error("Erreur lors de la lecture de la frame")
+                return False, None
+                
+            return True, frame
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la lecture de la frame: {str(e)}")
+            return False, None
